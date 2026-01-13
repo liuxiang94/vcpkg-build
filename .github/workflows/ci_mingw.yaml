@@ -1,0 +1,55 @@
+name: Build for Windows ARM64
+
+on:
+  push:
+
+jobs:
+  build-windows-arm64:
+    name: Build
+    runs-on: ubuntu-latest
+    env:
+      llvm_path: "${{ github.workspace }}/llvm-mingw"
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install tools
+        run: |
+          sudo apt update
+          sudo apt install build-essential cmake ninja-build pkg-config nasm
+          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20251118/llvm-mingw-20251118-ucrt-ubuntu-22.04-x86_64.tar.xz
+          tar -xf llvm-mingw-*.tar.xz
+          rm llvm-mingw-*.tar.xz
+          mv llvm-mingw-* llvm-mingw
+
+      - name: Setup a new (or from cache) vcpkg (and does not build any package)
+        uses: lukka/run-vcpkg@v11 # Always specify the specific _version_ of the
+                                  # action you need, `v11` in this case to stay up
+                                  # to date with fixes on the v11 branch
+        with:
+          vcpkgGitCommitId: '84bab45d415d22042bd0b9081aea57f362da3f35'
+          
+      - name: Install libraries from vcpkg
+        run: |
+          PATH=$PATH:${{ env.llvm_path }}/bin
+          cd ${{ env.RUNVCPKG_VCPKG_ROOT }}
+          # clear buildtrees after each package installation to reduce disk space requirements
+          mkdir triplets_overlay
+          cp triplets/community/x64-mingw-dynamic.cmake triplets_overlay/x64-mingw-dynamic-release.cmake
+          echo "set(VCPKG_BUILD_TYPE release)" >> triplets_overlay/x64-mingw-dynamic-release.cmake
+          packages="cblas:x64-mingw-dynamic-release lapack-reference[cblas]:x64-mingw-dynamic-release fftw:x64-mingw-dynamic-release"
+          ./vcpkg upgrade \
+            --no-dry-run
+          ./vcpkg install \
+            --clean-after-build \
+            --overlay-triplets=triplets_overlay \
+            --host-triplet=x64-linux-release \
+            $packages
+          ./vcpkg export $packages --zip --output=packages
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: packages.zip
