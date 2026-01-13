@@ -38,7 +38,7 @@ jobs:
           mkdir triplets_overlay
           cp triplets/community/x64-mingw-dynamic.cmake triplets_overlay/x64-mingw-dynamic-release.cmake
           echo "set(VCPKG_BUILD_TYPE release)" >> triplets_overlay/x64-mingw-dynamic-release.cmake
-          packages="cblas:x64-mingw-dynamic-release lapack-reference[cblas]:x64-mingw-dynamic-release fftw3:x64-mingw-dynamic-release"
+          packages="openblas[threads]:x64-mingw-dynamic-release lapack:x64-mingw-dynamic-release fftw3[openmp,threads]:x64-mingw-dynamic-release"
           ./vcpkg upgrade \
             --no-dry-run
           ./vcpkg install \
