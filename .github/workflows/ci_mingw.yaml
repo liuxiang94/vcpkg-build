@@ -6,7 +6,7 @@ on:
 jobs:
   build-windows-arm64:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     env:
       llvm_path: "${{ github.workspace }}/llvm-mingw"
     
@@ -16,12 +16,9 @@ jobs:
 
       - name: Install tools
         run: |
-          sudo apt update
-          sudo apt install build-essential cmake ninja-build pkg-config nasm
-          wget https://github.com/mstorsjo/llvm-mingw/releases/download/20251118/llvm-mingw-20251118-ucrt-ubuntu-22.04-x86_64.tar.xz
-          tar -xf llvm-mingw-*.tar.xz
-          rm llvm-mingw-*.tar.xz
-          mv llvm-mingw-* llvm-mingw
+          aria2c https://github.com/mstorsjo/llvm-mingw/releases/download/20251216/llvm-mingw-20251216-ucrt-x86_64.zip
+          choco install 7zip
+          7z x llvm-mingw-20251216-ucrt-x86_64.zip
 
       - name: Setup a new (or from cache) vcpkg (and does not build any package)
         uses: lukka/run-vcpkg@v11 # Always specify the specific _version_ of the
@@ -32,19 +29,18 @@ jobs:
           
       - name: Install libraries from vcpkg
         run: |
-          PATH=$PATH:${{ env.llvm_path }}/bin
+          $env:path += ";${{ env.llvm_path }}/bin"
           cd ${{ env.RUNVCPKG_VCPKG_ROOT }}
           # clear buildtrees after each package installation to reduce disk space requirements
           mkdir triplets_overlay
           cp triplets/community/x64-mingw-dynamic.cmake triplets_overlay/x64-mingw-dynamic-release.cmake
           echo "set(VCPKG_BUILD_TYPE release)" >> triplets_overlay/x64-mingw-dynamic-release.cmake
           packages="openblas[threads]:x64-mingw-dynamic-release lapack:x64-mingw-dynamic-release fftw3[threads]:x64-mingw-dynamic-release"
-          ./vcpkg upgrade \
+          ./vcpkg upgrade `
             --no-dry-run
-          ./vcpkg install \
-            --clean-after-build \
-            --overlay-triplets=triplets_overlay \
-            --host-triplet=x64-linux-release \
+          ./vcpkg install `
+            --clean-after-build `
+            --overlay-triplets=triplets_overlay `
             $packages
           ./vcpkg export $packages --zip --output=packages
 
